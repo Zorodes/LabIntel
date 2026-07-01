@@ -27,7 +27,7 @@ Settings.embed_model = embed_model
 Settings.chunk_size = 512
 Settings.chunk_overlap = 50
 
-# ============ PERSISTENCE LOGIC ============
+# PERSISTENCE LOGIC
 if os.path.exists(PERSIST_DIR):
     print(f"Loading cached index from {PERSIST_DIR}...")
     storage_context = StorageContext.from_defaults(persist_dir=PERSIST_DIR)
