@@ -1,43 +1,48 @@
 import os
-from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, Settings
+from pathlib import Path
+from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, Settings, StorageContext, load_index_from_storage
 from llama_index.llms.groq import Groq
 from llama_index.embeddings.ollama import OllamaEmbedding
 
-# 1. Force override the API Key string directly if OS environment variables are acting up
-# os.environ["GROQ_API_KEY"] = "gsk_..." 
+PERSIST_DIR = "./storage"
 
-print("📄 Loading PDF...")
+print("Loading PDF...")
 documents = SimpleDirectoryReader(input_files=["sample4.txt"]).load_data()
-print(f"✅ Loaded {len(documents)} documents")
+print(f"Loaded {len(documents)} documents")
 
-print("🧠 Creating embeddings (using Ollama)...")
+print("Creating embeddings (using Ollama)...")
 embed_model = OllamaEmbedding(model_name="nomic-embed-text", base_url="http://localhost:11434")
-print("✅ Embeddings ready")
+print("Embeddings ready")
 
-print("🤖 Connecting to Groq API...")
-# SWAPPED: Using the ultra-stable, non-speculative 70B production model ID
+print("Connecting to Groq API...")
 llm = Groq(
-    model="llama-3.3-70b-versatile",  # NEW 
+    model="llama-3.3-70b-versatile",
     api_key=os.getenv("GROQ_API_KEY")
 )
-print("✅ LLM ready")
+print("LLM ready")
 
 # Set global settings
 Settings.llm = llm  
 Settings.embed_model = embed_model
-# Adjust chunk settings slightly to give the model better structured paragraphs
 Settings.chunk_size = 512
 Settings.chunk_overlap = 50
 
-print("💾 Building index...")
-index = VectorStoreIndex.from_documents(documents)
-print("✅ Index ready")
+# ============ PERSISTENCE LOGIC ============
+if os.path.exists(PERSIST_DIR):
+    print(f"Loading cached index from {PERSIST_DIR}...")
+    storage_context = StorageContext.from_defaults(persist_dir=PERSIST_DIR)
+    index = load_index_from_storage(storage_context, embed_model=embed_model)
+    print("Index loaded from cache (no rebuild!)")
+else:
+    print("Building and persisting index (first time)...")
+    index = VectorStoreIndex.from_documents(documents)
+    index.storage_context.persist(persist_dir=PERSIST_DIR)
+    print(f"Index built and saved to {PERSIST_DIR}")
 
 print("\n" + "="*60)
-print("🎯 ASKING QUESTIONS")
+print("ASKING QUESTIONS")
 print("="*60 + "\n")
 
-# Explicitly use simple response mode to avoid internal LlamaIndex looping bugs
 query_engine = index.as_query_engine(response_mode="compact")
 
 questions = [
@@ -47,12 +52,12 @@ questions = [
 ]
 
 for q in questions:
-    print(f"❓ Q: {q}")
+    print(f"Q: {q}")
     try:
         response = query_engine.query(q)
-        print(f"✅ A: {response}\n")
+        print(f"A: {response}\n")
     except Exception as e:
-        print(f"❌ Error querying: {e}\n")
+        print(f"Error querying: {e}\n")
     print("-" * 60 + "\n")
 
-print("✨ RAG Pipeline working clean with Groq!")
+print("RAG Pipeline working clean with Groq!")
