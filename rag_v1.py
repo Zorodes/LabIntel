@@ -5,9 +5,10 @@ from llama_index.llms.groq import Groq
 from llama_index.embeddings.ollama import OllamaEmbedding
 
 PERSIST_DIR = "./storage"
+DOCUMENTS_DIR = "./documents"
 
-print("Loading PDF...")
-documents = SimpleDirectoryReader(input_files=["sample4.txt"]).load_data()
+print("Loading all PDFs from documents folder...")
+documents = SimpleDirectoryReader(input_dir=DOCUMENTS_DIR).load_data()
 print(f"Loaded {len(documents)} documents")
 
 print("Creating embeddings (using Ollama)...")
@@ -29,12 +30,26 @@ Settings.chunk_overlap = 50
 
 # PERSISTENCE LOGIC
 if os.path.exists(PERSIST_DIR):
-    print(f"Loading cached index from {PERSIST_DIR}...")
-    storage_context = StorageContext.from_defaults(persist_dir=PERSIST_DIR)
-    index = load_index_from_storage(storage_context, embed_model=embed_model)
-    print("Index loaded from cache (no rebuild!)")
+    print(f"Index cache found at {PERSIST_DIR}")
+    user_input = input("Did you add new files? (y/n): ").strip().lower()
+    
+    if user_input == 'y':
+        print("Loading existing index...")
+        storage_context = StorageContext.from_defaults(persist_dir=PERSIST_DIR)
+        index = load_index_from_storage(storage_context, embed_model=embed_model)
+        print("Adding new documents to existing index...")
+        # Add only new documents
+        for doc in documents:
+            index.insert(doc)
+        index.storage_context.persist(persist_dir=PERSIST_DIR)
+        print("New documents added to index!")
+    else:
+        print("Loading cached index...")
+        storage_context = StorageContext.from_defaults(persist_dir=PERSIST_DIR)
+        index = load_index_from_storage(storage_context, embed_model=embed_model)
+        print("Index loaded from cache (no rebuild!)")
 else:
-    print("Building and persisting index (first time)...")
+    print("Building index for the first time...")
     index = VectorStoreIndex.from_documents(documents)
     index.storage_context.persist(persist_dir=PERSIST_DIR)
     print(f"Index built and saved to {PERSIST_DIR}")
