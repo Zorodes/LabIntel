@@ -1,5 +1,6 @@
 import os
 import asyncio
+import sys
 from dotenv import load_dotenv
 load_dotenv(dotenv_path="apis.env")
 
@@ -23,7 +24,7 @@ class ChemAgent:
         if self._initialized:
             return
 
-        client = BasicMCPClient("python", args=["mcp_server.py"])
+        client = BasicMCPClient(sys.executable, args=["mcp_server.py"])
         tool_spec = McpToolSpec(client=client)
         tools = await tool_spec.to_tool_list_async()
 
@@ -41,7 +42,15 @@ class ChemAgent:
         if not self._initialized:
             await self.initialize()
 
-        response = await self.agent.run(query)
+        guided_query = (
+            "Answer the user's question. If the question asks about uploaded "
+            "documents, manuals, PDFs, files, or document-specific facts, you "
+            "must call the query_documents tool and base the answer only on "
+            "the retrieved document content. If the documents do not contain "
+            "the answer, say that clearly.\n\n"
+            f"User question: {query}"
+        )
+        response = await self.agent.run(guided_query)
         return str(response)
 
 
@@ -50,7 +59,7 @@ async def main():
     
     test_queries = [
         "I have a first-order reaction with k=0.5/min, feed rate 100 L/min. What CSTR volume do I need for 80% conversion?",
-        "Is it safe to run at 150C and 10atm with stainless steel?",
+        "According to the uploaded notes, what is a CSTR? Then calculate the required CSTR volume for a flow rate of 20 L/min, a rate constant of 0.5 min⁻¹, and a conversion of 80%",
     ]
 
     for q in test_queries:

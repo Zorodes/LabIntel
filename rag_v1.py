@@ -59,7 +59,7 @@ else:
 print("\n" + "="*60)
 print("ASKING QUESTIONS")
 print("="*60 + "\n")
-
+    
 query_engine = index.as_query_engine(response_mode="compact")
 
 questions = [
